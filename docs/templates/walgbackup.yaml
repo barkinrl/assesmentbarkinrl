@@ -1,0 +1,47 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ___NAMESPACE___
+  name: walgbackup
+data:
+  backup.sh: |
+    #!/bin/bash -eux
+    MASTERPOD=$(kubectl -n ${POD_NAMESPACE} get ep ${DB_CLUSTER} -o jsonpath='{.metadata.annotations.leader}')
+
+    if [ -z ${MASTERPOD} ]; then
+      MASTERPOD=$(kubectl -n ${POD_NAMESPACE} get pod -l cluster-name=${DB_CLUSTER} -o name |head -n 1)
+    fi
+
+    SLAVEPOD=$(kubectl -n ${POD_NAMESPACE} exec -ti ${MASTERPOD} -- patronictl list -f json|tr -d '\n' |/usr/bin/jq -r -c 'map(select(.Role == "Replica" )) | .[] .Member'|sort -r |head -n 1|tr -d '\n')
+
+    if [ -z ${SLAVEPOD} ]; then
+      BACKUPPOD=${MASTERPOD}
+    else
+      BACKUPPOD=${SLAVEPOD}
+    fi
+
+    if [ -z ${BACKUPPOD} ]; then
+      echo "No backup pod"
+      exit 1
+    fi
+
+    kubectl -n ${POD_NAMESPACE} exec -ti ${BACKUPPOD} -- wal-g --config=${WALG_CONFIG} backup-push /home/postgres/pgdata/pgroot/data
+    if [[ "$(date +%d)" == "01" ]]; then
+      BACKUPID=$(kubectl -n ${POD_NAMESPACE} exec -ti ${BACKUPPOD} -- wal-g --config=${WALG_CONFIG} backup-list|grep "$(date +%Y-%m-%d)"|head -n 1|cut -f1 -d" ")
+      if [ ! -z ${BACKUPID+x} ]; then
+        kubectl -n ${POD_NAMESPACE} exec -ti ${BACKUPPOD} -- wal-g --config=${WALG_CONFIG} backup-mark ${BACKUPID}
+      fi
+    fi
+
+    kubectl -n ${POD_NAMESPACE} exec -ti ${BACKUPPOD} -- wal-g --config=${WALG_CONFIG} delete retain FIND_FULL ${RETAIN_DAYS:-15} || exit 0
+    kubectl -n ${POD_NAMESPACE} exec -ti ${BACKUPPOD} -- wal-g --config=${WALG_CONFIG} delete retain FIND_FULL ${RETAIN_DAYS:-15} --confirm
+  config.json: |
+    {
+      "AWS_ACCESS_KEY_ID": "___AWS_ACCESS_KEY_ID___",
+      "AWS_SECRET_ACCESS_KEY": "___AWS_SECRET_ACCESS_KEY___",
+      "AWS_ENDPOINT": "___AWS_ENDPOINT___",
+      "AWS_S3_FORCE_PATH_STYLE": "true",
+      "PGHOST": "/run/postgresql",
+      "PGUSER": "postgres"
+    }
