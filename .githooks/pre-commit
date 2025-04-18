@@ -1,0 +1,31 @@
+#!/bin/sh
+# Simple pre-commit hook to lint Go and Node projects
+
+echo "🔍 Running linters..."
+
+# Run golangci-lint
+if command -v golangci-lint >/dev/null 2>&1; then
+  echo "→ Linting Go code..."
+  golangci-lint run --fix ./...
+  if [ $? -ne 0 ]; then
+    echo "❌ Go lint failed!"
+    exit 1
+  fi
+fi
+
+# Run ESLint
+if command -v npm >/dev/null 2>&1 && [ -f frontend/package.json ]; then
+  echo "→ Linting frontend..."
+  cd frontend
+  npm run lint
+  status=$?
+  cd ..
+  if [ $status -ne 0 ]; then
+    echo "❌ JS/TS lint failed!"
+    exit 1
+  fi
+fi
+
+echo "✅ All linters passed!"
+exit 0
+

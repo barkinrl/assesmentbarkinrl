@@ -1,0 +1,44 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "rules": {
+    "prettier/prettier": "error"
+
+    // TypeScript strictness
+    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/ban-types": "error",
+    "@typescript-eslint/no-non-null-assertion": "warn",
+
+    // React strictness
+    "react/react-in-jsx-scope": "off", // if you"re using React 17+
+    "react/prop-types": "off", // using TS instead
+    "react/jsx-uses-react": "off",
+
+    // Hooks rules
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+  },
+  "plugins": ["react", "react-hooks" ,"@typescript-eslint", "prettier"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "module",
+    "ecmaFeatures": { "jsx": true }
+  },
+  "settings": {
+    "react": { "version": "detect" }
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2021": true
+  }
+}
+

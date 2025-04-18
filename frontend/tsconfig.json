@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "strict": true,
+    "outDir": "./dist/",
+    "noImplicitAny": true,
+    "module": "esnext",
+    "target": "es2019",
+    "lib": ["es2019", "dom", "es6", "webworker"],
+    "jsx": "react",
+    "allowJs": true,
+    "moduleResolution": "node"
+  }
+}

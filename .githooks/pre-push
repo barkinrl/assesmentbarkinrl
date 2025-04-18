@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# This work is licensed under Apache License, Version 2.0 or later.
+# Please read and understand the latest version of the Licence.
+
+set -e
+
+echo "🔐 Running pre-push hook: checking GPG signatures..."
+
+# Check commits being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+    # Only check if we're pushing new commits (not deleting)
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        range="$local_sha"
+    else
+        range="$remote_sha..$local_sha"
+    fi
+
+    if [ "$range" = "$local_sha" ]; then
+        commits="$local_sha"
+    else
+        commits=$(git rev-list "$range")
+    fi
+
+    for commit in $commits; do
+        if ! git verify-commit "$commit" >/dev/null 2>&1; then
+            echo "❌ Commit $commit is not GPG signed!"
+            exit 1
+        fi
+    done
+done
+
+# Check pushed tags
+for tag in $(git for-each-ref --format '%(refname:strip=2)' refs/tags); do
+    if ! git tag -v "$tag" >/dev/null 2>&1; then
+        echo "❌ Tag $tag is not GPG signed!"
+        exit 1
+    fi
+done
+
+echo "✅ All commits and tags are properly GPG signed."
+

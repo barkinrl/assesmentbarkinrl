@@ -1,0 +1,17 @@
+/**
+ * This work is licensed under Apache License, Version 2.0 or later. 
+ * Please read and understand latest version of Licence.
+ */
+.AppBar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: grid;
+    justify-content: center;
+}
+
+.AppBar a {
+    display: flex;
+    align-items: center;
+}

@@ -1,0 +1,5 @@
+bin/*
+vendor/*
+frontend/dist/*
+frontend/node_modules/*
+internal/static/*

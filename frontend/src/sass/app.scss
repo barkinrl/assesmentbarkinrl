@@ -1,0 +1,15 @@
+/**
+ * This work is licensed under Apache License, Version 2.0 or later. 
+ * Please read and understand latest version of Licence.
+ */
+body{
+  margin: 0
+}
+
+.App{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(gray, 0.2);
+  min-height: 100vh
+}
