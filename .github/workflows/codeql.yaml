@@ -41,17 +41,7 @@ jobs:
     - if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        mkdir -p internal/static
-        cat > internal/static/static.go <<EOF
-        package static
-
-        import "embed"
-
-        //go:embed *
-        var Static embed.FS
-        EOF
-        go mod tidy
-        go mod vendor
+        ./build.sh build backend
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
