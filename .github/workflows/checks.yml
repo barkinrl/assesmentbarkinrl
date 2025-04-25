@@ -50,6 +50,11 @@ jobs:
           var Static embed.FS
           EOF
 
+      - name: Install dependencies (backend)
+        run: |
+          go mod tidy
+          go mod vendor
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7.0.0
         with:
