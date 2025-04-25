@@ -15,7 +15,7 @@ GOOS=${GOOS:-linux}
 CGO_ENABLED=${CGO_ENABLED:-1}
 PROJECT=github.com/kazimsarikaya/assesmentbarkinrl
 
-if [ "x$cmd" == "xbuild" ]; then
+if [[ "x$cmd" == "xbuild" ]]; then
   REV=$(git describe --long --tags --match='v*' --dirty 2>/dev/null || git rev-list -n1 HEAD)
   NOW=$(date +'%Y-%m-%d_%T')
 
@@ -26,7 +26,7 @@ if [ "x$cmd" == "xbuild" ]; then
   # get the second argument
   buildfor=${1:-all}
 
-  if [ "x$buildfor" == "xall" ] || [ "x$buildfor" == "xfrontend" ]; then
+  if [[ "x$buildfor" == "xall" ]] || [[ "x$buildfor" == "xfrontend" ]]; then
     cd frontend 
     npm install
     npm run build || exit 1
@@ -35,7 +35,7 @@ if [ "x$cmd" == "xbuild" ]; then
     cd ..
   fi
   
-  if [ "x$buildfor" == "xall" ] || [ "x$buildfor" == "xbackend" ]; then
+  if [[ "x$buildfor" == "xall" ]] || [[ "x$buildfor" == "xbackend" ]]; then
       cat > ./internal/static/static.go <<EOF
 package static
 
@@ -51,7 +51,7 @@ EOF
     GOOS=$GOOS CGO_ENABLED=$CGO_ENABLED go build -ldflags "${LDFLAGS} -X '$PROJECT/internal/config.version=$REV' -X '$PROJECT/internal/config.buildTime=$NOW' -X '$PROJECT/internal/config.goVersion=${GOV}'"  -o ./bin/go_react_mui-$GOOS ./cmd
   fi 
 
-elif [ "x$cmd" == "xtest" ]; then
+elif [[ "x$cmd" == "xtest" ]]; then
   shift
   ./test.sh $@
 else
