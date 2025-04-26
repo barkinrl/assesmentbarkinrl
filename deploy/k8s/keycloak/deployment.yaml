@@ -1,3 +1,5 @@
+# Keycloak SSO deployment configuration
+# This deployment sets up Keycloak as the SSO provider for the application
 apiVersion: apps/v1
 kind: Deployment
 metadata:
