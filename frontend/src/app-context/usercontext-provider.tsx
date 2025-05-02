@@ -136,7 +136,7 @@ export const AppContextProvider: React.FunctionComponent<Props> = (
 
     let headers = {};
 
-    if (SSO_ENABLED) {
+    if (process.env.SSO_ENABLED === "true") {
       const access_token = auth.user?.access_token;
       const id_token = auth.user?.id_token;
 
