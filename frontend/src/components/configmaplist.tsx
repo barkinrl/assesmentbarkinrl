@@ -35,7 +35,6 @@ const ConfigMapList: React.FC = () => {
 
   // Fetch single configmap data for editing
   const handleEdit = (name: string) => {
-<<<<<<< HEAD
     if (!auth.user?.access_token) return;
     fetch("/api", {
       method: "POST",
@@ -43,11 +42,6 @@ const ConfigMapList: React.FC = () => {
         "Content-Type": "application/json",
         Authorization: "Bearer " + auth.user.access_token,
       },
-=======
-    fetch("/api", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
->>>>>>> 15d14de (add: configmap list added to frontend)
       body: JSON.stringify({ action: "get_configmap", name }),
     })
       .then((res) => res.json())
@@ -58,7 +52,6 @@ const ConfigMapList: React.FC = () => {
   };
 
   const handleSave = (name: string) => {
-<<<<<<< HEAD
     if (!auth.user?.access_token) return;
     fetch("/api", {
       method: "POST",
@@ -66,11 +59,6 @@ const ConfigMapList: React.FC = () => {
         "Content-Type": "application/json",
         Authorization: "Bearer " + auth.user.access_token,
       },
-=======
-    fetch("/api", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
->>>>>>> 15d14de (add: configmap list added to frontend)
       body: JSON.stringify({
         action: "update_configmap",
         name,
@@ -82,7 +70,6 @@ const ConfigMapList: React.FC = () => {
     });
   };
 
-<<<<<<< HEAD
   const handleDelete = (name: string) => {
     if (!auth.user?.access_token) return;
     fetch("/api", {
@@ -98,8 +85,6 @@ const ConfigMapList: React.FC = () => {
     }).then(() => setConfigMaps(configMaps.filter((c) => c.name !== name)));
   };
 
-=======
->>>>>>> 15d14de (add: configmap list added to frontend)
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -116,22 +101,7 @@ const ConfigMapList: React.FC = () => {
               Edit
             </button>
             <button
-<<<<<<< HEAD
               onClick={() => handleDelete(cm.name)}
-=======
-              onClick={() => {
-                fetch("/api", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    action: "delete_configmap",
-                    name: cm.name,
-                  }),
-                }).then(() =>
-                  setConfigMaps(configMaps.filter((c) => c.name !== cm.name))
-                );
-              }}
->>>>>>> 15d14de (add: configmap list added to frontend)
               style={{ marginLeft: "10px" }}
             >
               Delete
