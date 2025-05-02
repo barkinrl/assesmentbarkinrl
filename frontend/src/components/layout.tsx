@@ -52,7 +52,7 @@ const Layout: React.FunctionComponent<Props> = ({ children }) => {
 
   let body = null;
 
-  if (process.env.SSO_ENABLED === "true") {
+  if (SSO_ENABLED) {
     if (auth.isAuthenticated) {
       body = real_body;
     }

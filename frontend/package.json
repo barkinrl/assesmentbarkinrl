@@ -4,7 +4,6 @@
   "description": "frontend for the app",
   "main": "src/index.tsx",
   "scripts": {
-    "start": "webpack serve --mode development --open",
     "build": "webpack --progress",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
