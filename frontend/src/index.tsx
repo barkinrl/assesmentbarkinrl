@@ -24,7 +24,7 @@ import { AppContextProvider } from "./app-context/usercontext-provider";
 
 let oidcConfig: AuthProviderProps | null = null;
 
-if (process.env.SSO_ENABLED === "true") {
+if (SSO_ENABLED) {
   oidcConfig = {
     authority: process.env.SSO_AUTHORITY_URL,
     client_id: process.env.SSO_CLIENT_ID,
