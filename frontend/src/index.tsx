@@ -26,8 +26,8 @@ let oidcConfig: AuthProviderProps | null = null;
 
 if (SSO_ENABLED) {
   oidcConfig = {
-    authority: process.env.SSO_AUTHORITY_URL,
-    client_id: process.env.SSO_CLIENT_ID,
+    authority: SSO_AUTHORITY_URL,
+    client_id: SSO_CLIENT_ID,
     scope: "openid profile email",
     redirect_uri: window.location.href,
     onSigninCallback: () => {
