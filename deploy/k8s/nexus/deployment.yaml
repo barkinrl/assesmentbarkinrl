@@ -1,0 +1,75 @@
+# Nexus repository deployment configuration
+# This deployment sets up Nexus as the artifact repository for the application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexus
+  template:
+    metadata:
+      labels:
+        app: nexus
+    spec:
+      initContainers:
+        - name: init-nexus-data
+          image: busybox
+          command:
+            [
+              "sh",
+              "-c",
+              "mkdir -p /nexus-data/etc && chown -R 200:200 /nexus-data",
+            ]
+          volumeMounts:
+            - name: nexus-data
+              mountPath: /nexus-data
+      securityContext:
+        fsGroup: 200
+      containers:
+        - name: nexus
+          image: sonatype/nexus3:latest
+          env:
+            - name: INSTALL4J_ADD_VM_PARAMS
+              value: "-Xms1200M -Xmx1200M -XX:MaxDirectMemorySize=2G -Djava.util.prefs.userRoot=/nexus-data/javaprefs"
+          ports:
+            - containerPort: 8081
+              name: nexus
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: nexus-data
+              mountPath: /nexus-data
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /service/rest/v1/status
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /service/rest/v1/status
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: nexus-data
+          persistentVolumeClaim:
+            claimName: nexus-pvc

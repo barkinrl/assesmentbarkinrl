@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+data:
+  # Server configuration
+  SERVER_PORT: "8082"
+  SERVER_DEBUG: "false"
+  SERVER_WAIT: "15s"
+
+  # Keycloak configuration
+  KEYCLOAK_URL: "http://keycloak:8080"
+  KEYCLOAK_REALM: "master"
+  KEYCLOAK_CLIENT_ID: "admin-cli"
+  KEYCLOAK_CLIENT_SECRET: "" # This should be set through a secret in production
+  OIDC_ISSUER_URL: "http://keycloak:8080/realms/master"
+
+  # MinIO configuration
+  MINIO_ENDPOINT: "http://minio:9000"
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
+
+  # Nexus configuration (to be added later)
+  NEXUS_URL: "http://nexus:8081"
+  NEXUS_USERNAME: "admin"
+  NEXUS_PASSWORD: "" # This should be set through a secret in production
