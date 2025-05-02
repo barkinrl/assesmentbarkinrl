@@ -24,10 +24,10 @@ import { AppContextProvider } from "./app-context/usercontext-provider";
 
 let oidcConfig: AuthProviderProps | null = null;
 
-if (SSO_ENABLED) {
+if (process.env.SSO_ENABLED === "true") {
   oidcConfig = {
-    authority: SSO_AUTHORITY_URL,
-    client_id: SSO_CLIENT_ID,
+    authority: process.env.SSO_AUTHORITY_URL,
+    client_id: process.env.SSO_CLIENT_ID,
     scope: "openid profile email",
     redirect_uri: window.location.href,
     onSigninCallback: () => {
