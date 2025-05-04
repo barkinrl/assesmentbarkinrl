@@ -2,56 +2,56 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: post-init-scripts
-  namespace: ___NAMESPACE___
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}
+    app: {{ .CLUSTERNAME }}
 data:
   001.sql: |
-    ___USER_AND_DATABASE_CREATE_SCRIPT___
+    {{ .USER_AND_DATABASE_CREATE_SCRIPT }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ___CLUSTERNAME____-db
-  namespace: ___NAMESPACE___
+  name: {{ .CLUSTERNAME }}-db
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
 type: Opaque
 data:
-  superuser-password: ___AUTOCREATED___
-  replication-password: ___AUTOCREATED___
+  superuser-password: {{ .AUTOCREATED }}
+  replication-password: {{ .AUTOCREATED }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: ___CLUSTERNAME____-db-config
-  namespace: ___NAMESPACE___
+  name: {{ .CLUSTERNAME }}-db-config
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
 spec:
   clusterIP: None
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: ___CLUSTERNAME____-db
-  namespace: ___NAMESPACE___
+  name: {{ .CLUSTERNAME }}-db
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
 spec:
   type: ClusterIP
   selector:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
     role: primary
   ports:
   - port: 5432
@@ -60,18 +60,18 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ___CLUSTERNAME____-db-repl
-  namespace: ___NAMESPACE___
+  name: {{ .CLUSTERNAME }}-db-repl
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
 spec:
   type: ClusterIP
   selector:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
     role: replica
   ports:
   - port: 5432
@@ -80,28 +80,28 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: ___CLUSTERNAME____-db
-  namespace: ___NAMESPACE___
+  name: {{ .CLUSTERNAME }}-db
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
 spec:
   selector:
     matchLabels:
-      application: patroni-___CLUSTERNAME____-db
-      cluster-name: ___CLUSTERNAME____-db
-      app: ___CLUSTERNAME____
-  replicas: ___REPLICA_COUNT___ 
-  serviceName: ___CLUSTERNAME____-db
+      application: patroni-{{ .CLUSTERNAME }}-db
+      cluster-name: {{ .CLUSTERNAME }}-db
+      app: {{ .CLUSTERNAME }}
+  replicas: {{ .REPLICA_COUNT }}
+  serviceName: {{ .CLUSTERNAME }}-db
   template:
     metadata:
       labels:
-        application: patroni-___CLUSTERNAME____-db
-        cluster-name: ___CLUSTERNAME____-db
-        app: ___CLUSTERNAME____
+        application: patroni-{{ .CLUSTERNAME }}-db
+        cluster-name: {{ .CLUSTERNAME }}-db
+        app: {{ .CLUSTERNAME }}
     spec:
-      serviceAccountName: ___SANAME___
+      serviceAccountName: {{ .SANAME }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -110,7 +110,7 @@ spec:
                   - key: "cluster-name"
                     operator: In
                     values:
-                    - ___CLUSTERNAME____-db
+                    - {{ .CLUSTERNAME }}-db
               topologyKey: "kubernetes.io/hostname"
       initContainers:
       - name: chown-pgdata
@@ -125,8 +125,8 @@ spec:
         - mountPath: /home/postgres/pgdata
           name: pgdata
       containers:
-      - name: ___CLUSTERNAME____-db
-        image: ___IMAGE___
+      - name: {{ .CLUSTERNAME }}-db
+        image: {{ .IMAGE }}
         imagePullPolicy: IfNotPresent
         readinessProbe:
           httpGet:
@@ -166,23 +166,23 @@ spec:
         - name: PATRONI_KUBERNETES_USE_ENDPOINTS
           value: 'true'
         - name: PATRONI_KUBERNETES_LABELS
-          value: '{application: patroni-___CLUSTERNAME____-db, cluster-name: ___CLUSTERNAME____-db, app: ___CLUSTERNAME____}'
+          value: '{application: patroni-{{ .CLUSTERNAME }}-db, cluster-name: {{ .CLUSTERNAME }}-db, app: {{ .CLUSTERNAME }}}'
         - name: PATRONI_SUPERUSER_USERNAME
           value: postgres
         - name: PATRONI_SUPERUSER_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: ___CLUSTERNAME____-db
+              name: {{ .CLUSTERNAME }}-db
               key: superuser-password
         - name: PATRONI_REPLICATION_USERNAME
           value: standby
         - name: PATRONI_REPLICATION_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: ___CLUSTERNAME____-db
+              name: {{ .CLUSTERNAME }}-db
               key: replication-password
         - name: PATRONI_SCOPE
-          value: ___CLUSTERNAME____-db
+          value: {{ .CLUSTERNAME }}-db
         - name: PATRONI_NAME
           valueFrom:
             fieldRef:
@@ -198,9 +198,9 @@ spec:
         - name: WALG_BACKUP_CONFIG
           value: "/walg/config.json"
         - name: WALG_S3_PREFIX
-          value: "___S3_BUCKET_ADDRESS___" 
+          value: "{{ .S3_BUCKET_ADDRESS }}"
         - name: DB_ARCHIVE_MODE
-          value: "___ARCHIVE_MODE___"
+          value: "{{ .ARCHIVE_MODE }}"
       terminationGracePeriodSeconds: 0
       volumes:
       - name: walgbackup
@@ -217,11 +217,11 @@ spec:
   volumeClaimTemplates:
   - metadata:
      labels:
-       application: patroni-___CLUSTERNAME____-db
-       cluster-name: ___CLUSTERNAME____-db
+       application: patroni-{{ .CLUSTERNAME }}-db
+       cluster-name: {{ .CLUSTERNAME }}-db
      name: pgdata
     spec:
-     storageClassName: ___STORAGE_CLASS_NAME___
+     storageClassName: {{ .STORAGE_CLASS_NAME }}
      accessModes:
      - ReadWriteOnce
      resources:
@@ -231,30 +231,30 @@ spec:
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: backup-___CLUSTERNAME____-db
-  namespace: ___NAMESPACE___
+  name: backup-{{ .CLUSTERNAME }}-db
+  namespace: {{ .NAMESPACE }}
   labels:
-    application: patroni-___CLUSTERNAME____-db
-    cluster-name: ___CLUSTERNAME____-db
-    app: ___CLUSTERNAME____
+    application: patroni-{{ .CLUSTERNAME }}-db
+    cluster-name: {{ .CLUSTERNAME }}-db
+    app: {{ .CLUSTERNAME }}
 spec:
   schedule: "45 00 * * *"
-  suspend: ___SUSPEND___
+  suspend: {{ .SUSPEND }}
   jobTemplate:
     spec:
       template:
         spec:
-          serviceAccountName: ___SANAME___
+          serviceAccountName: {{ .SANAME }}
           restartPolicy: Never
           containers:
-          - name: backup-___CLUSTERNAME____-db
+          - name: backup-{{ .CLUSTERNAME }}-db
             command:
             - /walg/backup.sh
             image: bitnami/kubectl:1.31
             imagePullPolicy: IfNotPresent
             env:
             - name: DB_CLUSTER
-              value: ___CLUSTERNAME____-db
+              value: {{ .CLUSTERNAME }}-db
             - name: WALG_CONFIG
               value: /walg/config.json
             - name: POD_NAMESPACE

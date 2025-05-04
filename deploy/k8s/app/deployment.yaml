@@ -13,6 +13,7 @@ spec:
       labels:
         app: app
     spec:
+      serviceAccountName: app-service-account
       containers:
         - name: app
           image: app:latest

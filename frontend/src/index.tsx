@@ -78,5 +78,5 @@ root.render(
         </AppContextProvider>
       </AuthProvider>
     </CacheProvider>
-  </StrictMode>,
+  </StrictMode>
 );
