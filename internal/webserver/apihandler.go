@@ -9,7 +9,14 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type apiActionResult func()
@@ -21,7 +28,11 @@ type securedApiAction struct {
 }
 
 var apiActions = map[string]securedApiAction{
-	"get_version": {action: getVersion, needAuth: false},
+	"get_version":      {action: getVersion, needAuth: false},
+	"get_configmaps":   {action: getConfigMaps, needAuth: true},
+	"delete_configmap": {action: deleteConfigMap, needAuth: true},
+	"get_configmap":    {action: getConfigMap, needAuth: true},
+	"update_configmap": {action: updateConfigMap, needAuth: true},
 }
 
 func sendError(w http.ResponseWriter, errmsg string, statusCode int) {
@@ -148,4 +159,171 @@ func ApiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result()
+}
+
+func getConfigMaps(w http.ResponseWriter, r *http.Request, data map[string]interface{}) apiActionResult {
+	return func() {
+		var config *rest.Config
+		var err error
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+			if err != nil {
+				sendError(w, "Kubeconfig error", http.StatusInternalServerError)
+				return
+			}
+		}
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			sendError(w, "Clientset error", http.StatusInternalServerError)
+			return
+		}
+		cms, err := clientset.CoreV1().ConfigMaps("").List(r.Context(), metav1.ListOptions{})
+		if err != nil {
+			sendError(w, "List error", http.StatusInternalServerError)
+			return
+		}
+		result := []map[string]string{}
+		for _, cm := range cms.Items {
+			result = append(result, map[string]string{"name": cm.Name})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			slog.Error("Error encoding response", "error", err)
+		}
+	}
+}
+
+func deleteConfigMap(w http.ResponseWriter, r *http.Request, data map[string]interface{}) apiActionResult {
+	return func() {
+		name, ok := data["name"].(string)
+		if !ok || name == "" {
+			sendError(w, "Missing configmap name", http.StatusBadRequest)
+			return
+		}
+		var config *rest.Config
+		var err error
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+			if err != nil {
+				sendError(w, "Kubeconfig error", http.StatusInternalServerError)
+				return
+			}
+		}
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			sendError(w, "Clientset error", http.StatusInternalServerError)
+			return
+		}
+		err = clientset.CoreV1().ConfigMaps("").Delete(r.Context(), name, metav1.DeleteOptions{})
+		if err != nil {
+			sendError(w, "Delete error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"status":"deleted"}`)); err != nil {
+			slog.Error("Error writing response", "error", err)
+		}
+	}
+}
+
+func getConfigMap(w http.ResponseWriter, r *http.Request, data map[string]interface{}) apiActionResult {
+	return func() {
+		name, ok := data["name"].(string)
+		if !ok || name == "" {
+			sendError(w, "Missing configmap name", http.StatusBadRequest)
+			return
+		}
+		var config *rest.Config
+		var err error
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+			if err != nil {
+				sendError(w, "Kubeconfig error", http.StatusInternalServerError)
+				return
+			}
+		}
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			sendError(w, "Clientset error", http.StatusInternalServerError)
+			return
+		}
+		cm, err := clientset.CoreV1().ConfigMaps("").Get(r.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			sendError(w, "Get error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"name": cm.Name,
+			"data": cm.Data,
+		}); err != nil {
+			slog.Error("Error encoding response", "error", err)
+		}
+	}
+}
+
+func updateConfigMap(w http.ResponseWriter, r *http.Request, data map[string]interface{}) apiActionResult {
+	return func() {
+		name, ok := data["name"].(string)
+		if !ok || name == "" {
+			sendError(w, "Missing configmap name", http.StatusBadRequest)
+			return
+		}
+		rawData, ok := data["data"]
+		if !ok {
+			sendError(w, "Missing configmap data", http.StatusBadRequest)
+			return
+		}
+		// Convert rawData to map[string]string
+		dataMap := map[string]string{}
+		switch v := rawData.(type) {
+		case map[string]interface{}:
+			for k, val := range v {
+				if str, ok := val.(string); ok {
+					dataMap[k] = str
+				}
+			}
+		default:
+			sendError(w, "Invalid data format", http.StatusBadRequest)
+			return
+		}
+
+		var config *rest.Config
+		var err error
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+			if err != nil {
+				sendError(w, "Kubeconfig error", http.StatusInternalServerError)
+				return
+			}
+		}
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			sendError(w, "Clientset error", http.StatusInternalServerError)
+			return
+		}
+		cm, err := clientset.CoreV1().ConfigMaps("").Get(r.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			sendError(w, "Get error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		cm.Data = dataMap
+		_, err = clientset.CoreV1().ConfigMaps("").Update(r.Context(), cm, metav1.UpdateOptions{})
+		if err != nil {
+			sendError(w, "Update error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"status":"updated"}`)); err != nil {
+			slog.Error("Error writing response", "error", err)
+		}
+	}
 }

@@ -1,5 +1,5 @@
 {
-    "compilerOptions": {
+  "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
     "strict": true,

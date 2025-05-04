@@ -15,7 +15,11 @@ GOOS=${GOOS:-linux}
 CGO_ENABLED=${CGO_ENABLED:-1}
 PROJECT=github.com/kazimsarikaya/assesmentbarkinrl
 
-if [[ "x$cmd" == "xbuild" ]]; then
+# set default values for environment variables
+export OIDC_ISSUER="http://keycloak:8080/realms/assesment-realm"
+export OIDC_AUDIENCE="assesment-frontend"
+
+if [ "x$cmd" == "xbuild" ]; then
   REV=$(git describe --long --tags --match='v*' --dirty 2>/dev/null || git rev-list -n1 HEAD)
   NOW=$(date +'%Y-%m-%d_%T')
 

@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const AppContextProvider: React.FunctionComponent<Props> = (
-  props: Props,
+  props: Props
 ): React.JSX.Element => {
   const auth = useAuth();
 
@@ -74,6 +74,8 @@ export const AppContextProvider: React.FunctionComponent<Props> = (
   };
 
   useEffect(() => {
+    console.log("auth.user", auth.user);
+
     if (SSO_ENABLED) {
       if (auth.activeNavigator === "signinSilent") {
         updatePage({
@@ -155,8 +157,13 @@ export const AppContextProvider: React.FunctionComponent<Props> = (
       };
     }
 
-    fetch("/api?data=" + data, {
-      headers: headers,
+    fetch("/api", {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+      },
+      body: data,
     })
       .then((response) => response.json())
       .then((data) => {

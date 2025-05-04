@@ -51,6 +51,18 @@ var (
 			fmt.Println("go version:", config.GetConfig().GetGoVersion())
 		},
 	}
+
+	watcherCmd = &cobra.Command{
+		Use:   "watcher",
+		Short: "Start the configmap watcher",
+		Long:  `Start the configmap watcher for template replacement and apply.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := webserver.WatchConfigMaps()
+			if err != nil {
+				slog.Error("Error running watcher", "error", err)
+			}
+		},
+	}
 )
 
 func initConfig() {
@@ -96,6 +108,8 @@ func init() {
 	rootCmd.AddCommand(serverCmd)
 
 	rootCmd.AddCommand(versionCmd)
+
+	rootCmd.AddCommand(watcherCmd)
 }
 
 func cmdServer() error {
