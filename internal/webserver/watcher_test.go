@@ -5,42 +5,46 @@ package webserver
 import (
 	"bytes"
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"text/template"
 	"time"
 
-	"github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 func TestWatcher(t *testing.T) {
-	RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "ConfigMap Watcher Suite")
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Watcher Suite")
 }
 
-var _ = ginkgo.Describe("ConfigMap Watcher", func() {
+var _ = Describe("WatchConfigMaps", func() {
 	var (
 		clientset     *fake.Clientset
 		stopCh        chan struct{}
-		wg            sync.WaitGroup
 		origWriteFile func(string, []byte, os.FileMode) error
-		origSleep     func(time.Duration)
 		outputBuf     bytes.Buffer
 	)
 
-	beforeEach := func() {
+	const (
+		testNamespace = "default"
+		testCMName    = "test-cm"
+		templateNS    = "template-namespace"
+		templateCM    = "db-template"
+	)
+
+	BeforeEach(func() {
 		clientset = fake.NewSimpleClientset()
 		stopCh = make(chan struct{})
 		outputBuf.Reset()
@@ -50,31 +54,19 @@ var _ = ginkgo.Describe("ConfigMap Watcher", func() {
 			outputBuf.Write(data)
 			return nil
 		}
-		// Patch time.Sleep to skip waiting
-		origSleep = timeSleep
-		timeSleep = func(d time.Duration) {}
-	}
+	})
 
-	afterEach := func() {
-		select {
-		case <-stopCh:
-			// Kanal zaten kapalı, tekrar kapatma
-		default:
-			close(stopCh) // Sadece açıksa kapat
-		}
+	AfterEach(func() {
 		osWriteFile = origWriteFile
-		timeSleep = origSleep
-	}
+		close(stopCh)
+	})
 
-	ginkgo.BeforeEach(beforeEach)
-	ginkgo.AfterEach(afterEach)
-
-	ginkgo.It("should create StatefulSet when annotated ConfigMap is added", func() {
+	It("should create StatefulSet when annotated ConfigMap is added", func() {
 		// Add template ConfigMap
-		templateCM := &corev1.ConfigMap{
+		templateCMObj := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "db-template",
-				Namespace: "template-namespace",
+				Name:      templateCM,
+				Namespace: templateNS,
 			},
 			Data: map[string]string{
 				"db.yaml": `
@@ -99,20 +91,18 @@ spec:
 `,
 			},
 		}
-		_, err := clientset.CoreV1().ConfigMaps("template-namespace").Create(context.TODO(), templateCM, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().ConfigMaps(templateNS).Create(context.TODO(), templateCMObj, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
 		// Prepare watcher
 		watcher := watch.NewFake()
 		clientset.Fake.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(watcher, nil))
 
-		// Run WatchConfigMaps in goroutine
-		wg.Add(1)
+		// Run WatchConfigMaps in goroutine (mocked)
 		go func() {
-			defer wg.Done()
 			// Patch clientset creation
 			origNewForConfig := newForConfig
-			newForConfig = func(_ interface{}) (KubeClient, error) { return clientset, nil }
+			newForConfig = func(_ interface{}) (*fake.Clientset, error) { return clientset, nil }
 			defer func() { newForConfig = origNewForConfig }()
 			_ = WatchConfigMapsWithStop(stopCh)
 		}()
@@ -120,63 +110,56 @@ spec:
 		// Add annotated ConfigMap
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cm",
-				Namespace: "default",
+				Name:      testCMName,
+				Namespace: testNamespace,
 				Annotations: map[string]string{
 					annotationKey: "true",
 				},
 			},
 		}
 		watcher.Add(cm)
-		// Wait for processing
 		time.Sleep(100 * time.Millisecond)
 
 		// Check StatefulSet created
-		ss, err := clientset.AppsV1().StatefulSets("default").Get(context.TODO(), "mycluster", metav1.GetOptions{})
+		ss, err := clientset.AppsV1().StatefulSets(testNamespace).Get(context.TODO(), "mycluster", metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ss.Name).To(Equal("mycluster"))
 		// Check output file written
 		Expect(outputBuf.String()).To(ContainSubstring("kind: StatefulSet"))
-
-		// Stop watcher
-		close(stopCh)
-		wg.Wait()
 	})
 
-	ginkgo.It("should delete StatefulSet, Service, and PVC when ConfigMap is deleted", func() {
+	It("should delete StatefulSet, Service, and PVC when ConfigMap is deleted", func() {
 		// Create StatefulSet, Service, PVC
 		ss := &appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cm",
-				Namespace: "default",
+				Name:      testCMName,
+				Namespace: testNamespace,
 			},
 		}
 		svc := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cm",
-				Namespace: "default",
+				Name:      testCMName,
+				Namespace: testNamespace,
 			},
 		}
 		pvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cm",
-				Namespace: "default",
+				Name:      testCMName,
+				Namespace: testNamespace,
 			},
 		}
-		_, _ = clientset.AppsV1().StatefulSets("default").Create(context.TODO(), ss, metav1.CreateOptions{})
-		_, _ = clientset.CoreV1().Services("default").Create(context.TODO(), svc, metav1.CreateOptions{})
-		_, _ = clientset.CoreV1().PersistentVolumeClaims("default").Create(context.TODO(), pvc, metav1.CreateOptions{})
+		_, _ = clientset.AppsV1().StatefulSets(testNamespace).Create(context.TODO(), ss, metav1.CreateOptions{})
+		_, _ = clientset.CoreV1().Services(testNamespace).Create(context.TODO(), svc, metav1.CreateOptions{})
+		_, _ = clientset.CoreV1().PersistentVolumeClaims(testNamespace).Create(context.TODO(), pvc, metav1.CreateOptions{})
 
 		// Prepare watcher
 		watcher := watch.NewFake()
 		clientset.Fake.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(watcher, nil))
 
-		// Run WatchConfigMaps in goroutine
-		wg.Add(1)
+		// Run WatchConfigMaps in goroutine (mocked)
 		go func() {
-			defer wg.Done()
 			origNewForConfig := newForConfig
-			newForConfig = func(_ interface{}) (KubeClient, error) { return clientset, nil }
+			newForConfig = func(_ interface{}) (*fake.Clientset, error) { return clientset, nil }
 			defer func() { newForConfig = origNewForConfig }()
 			_ = WatchConfigMapsWithStop(stopCh)
 		}()
@@ -184,24 +167,20 @@ spec:
 		// Delete ConfigMap event
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cm",
-				Namespace: "default",
+				Name:      testCMName,
+				Namespace: testNamespace,
 			},
 		}
 		watcher.Delete(cm)
-		// Wait for processing
 		time.Sleep(100 * time.Millisecond)
 
 		// Check resources deleted
-		_, err := clientset.AppsV1().StatefulSets("default").Get(context.TODO(), "test-cm", metav1.GetOptions{})
+		_, err := clientset.AppsV1().StatefulSets(testNamespace).Get(context.TODO(), testCMName, metav1.GetOptions{})
 		Expect(err).To(HaveOccurred())
-		_, err = clientset.CoreV1().Services("default").Get(context.TODO(), "test-cm", metav1.GetOptions{})
+		_, err = clientset.CoreV1().Services(testNamespace).Get(context.TODO(), testCMName, metav1.GetOptions{})
 		Expect(err).To(HaveOccurred())
-		_, err = clientset.CoreV1().PersistentVolumeClaims("default").Get(context.TODO(), "test-cm", metav1.GetOptions{})
+		_, err = clientset.CoreV1().PersistentVolumeClaims(testNamespace).Get(context.TODO(), testCMName, metav1.GetOptions{})
 		Expect(err).To(HaveOccurred())
-
-		close(stopCh)
-		wg.Wait()
 	})
 })
 
@@ -210,16 +189,10 @@ spec:
 // Patchable functions
 var (
 	osWriteFile  = os.WriteFile
-	timeSleep    = time.Sleep
-	newForConfig = func(cfg interface{}) (KubeClient, error) {
-		return nil, errors.New("not implemented")
+	newForConfig = func(cfg interface{}) (*fake.Clientset, error) {
+		return nil, fmt.Errorf("not implemented")
 	}
 )
-
-// KubeClient is an interface for kubernetes.Clientset for testability
-type KubeClient interface {
-	kubernetes.Interface
-}
 
 // WatchConfigMapsWithStop is a testable version of WatchConfigMaps with stop channel
 func WatchConfigMapsWithStop(stopCh <-chan struct{}) error {
@@ -271,7 +244,7 @@ func WatchConfigMapsWithStop(stopCh <-chan struct{}) error {
 					content := buf.String()
 					_ = osWriteFile(outputPath, []byte(content), 0644)
 					// Parse YAML to resource object(s)
-					decoder := utilyaml.NewYAMLOrJSONDecoder(strings.NewReader(content), 4096)
+					decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(content), 4096)
 					for {
 						var statefulSet appsv1.StatefulSet
 						if err := decoder.Decode(&statefulSet); err != nil {
